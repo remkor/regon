@@ -1,0 +1,159 @@
+<?php
+
+/**
+ * @file
+ * This module adds new field type, polish REGON identification number.
+ *
+ * Author: Remigiusz Kornaga <remkor@o2.pl>
+ */
+
+/**
+ * Implements hook_help().
+ */
+function regon_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#regon':
+      $output = '';
+      $output .= '<p>' . t('This module adds new field type, polish REGON identification number. It supports 9-digit and 14-digit long REGON numbers.') . '</p>';
+      $output .= '<p>' . t('Create a new node type and add new field REGON.') . '</p>';
+      $output .= '<p>' . t('REGON (from Rejestr Gospodarki Narodowej – Register of the National Economy) is a unique number granted to businesses in Poland.') . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_field_info().
+ */
+function regon_field_info() {
+  return array(
+    'regon' => array(
+      'label' => t('REGON'),
+      'description' => t('Contains REGON identification number.'),
+      'settings' => array('allowed_values' => array(), 'allowed_values_function' => ''),
+      'default_widget' => 'regon',
+      'default_formatter' => 'regon',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_validate().
+ */
+function regon_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+  foreach ($items as $delta => $item) {
+    if (!empty($item['number'])) {
+      $regon9 = preg_match('/^[0-9]{9}$/', $item['number']);
+      $regon14 = preg_match('/^[0-9]{14}$/', $item['number']);
+      if ($regon9 || $regon14) {
+        $weights = NULL;
+        if ($regon9) {
+          $weights = array(8, 9, 2, 3, 4, 5, 6, 7);
+        }
+        else {
+          $weights = array(2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8);
+        }
+        $sum = 0;
+        for ($i = 0; $i < count($weights); $i++) {
+          $sum += $item['number'][$i] * $weights[$i];
+        }
+        $check = $sum % 11;
+        $check = ($check == 10) ? 0 : $check;
+        if ($check != $item['number'][count($weights)]) {
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'regon_invalid',
+            'message' => t('Incorrect REGON number, a checksum has failed.'),
+          );
+        }
+      }
+      else {
+        if (ctype_digit($item['number'])) {
+          $length = strlen($item['number']);
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'regon_invalid',
+            'message' => t('Incorrect length (@length digits) of REGON number, it should be 9 or 14 digits.', array('@length' => $length)),
+          );
+        }
+        else {
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'regon_invalid',
+            'message' => t('Incorrect character in REGON number, only digits allowed.'),
+          );
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_field_is_empty().
+ */
+function regon_field_is_empty($item, $field) {
+  return empty($item['number']);
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function regon_field_widget_info() {
+  return array(
+    'regon' => array(
+      'label' => t('REGON'),
+      'field types' => array('regon'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function regon_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  return array(
+    'number' => array(
+      '#type' => 'textfield',
+      '#size' => 14,
+      '#maxlength' => 14,
+      '#title' => check_plain((empty($element['#title'])) ? t('REGON') : $element['#title']),
+      '#required' => $instance['required'],
+      '#default_value' => (empty($items[$delta]['number'])) ? '' : $items[$delta]['number'],
+      '#attributes' => array('class' => array('regon-number-input')),
+      '#description' => check_plain((empty($element['#description'])) ? t('9-digit or 14-digit REGON number. Only digits allowed.') : $element['#description']),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function regon_field_formatter_info() {
+  return array(
+    'regon' => array(
+      'label' => t('REGON'),
+      'field types' => array('regon'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function regon_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  foreach ($items as $delta => $item) {
+    $element[$delta] = array(
+      '#markup' => theme('regon', array('element' => $item, 'field' => $instance)),
+    );
+  }
+  return $element;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function regon_theme() {
+  return array(
+    'regon' => array(
+      'variables' => array('element' => NULL, 'field' => NULL),
+      'file' => 'regon.theme',
+    ),
+  );
+}

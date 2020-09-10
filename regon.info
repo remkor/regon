@@ -1,0 +1,6 @@
+name = Regon
+description = Defines a new field type, polish REGON identification number.
+package = Fields
+core = 7.x
+dependencies[] = field
+dependencies[] = text

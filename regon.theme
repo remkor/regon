@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * This file contains theme function for REGON field.
+ *
+ * Author: Remigiusz Kornaga <remkor@o2.pl>
+ */
+
+/**
+ * Theme function for REGON field.
+ */
+function theme_regon($variables) {
+  $output = '';
+
+  if (!empty($variables['element']['number'])) {
+    $output .= '<div><span>' . $variables['element']['number'] . '</span></div>';
+  }
+
+  return $output;
+}
